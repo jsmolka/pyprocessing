@@ -47,17 +47,18 @@ by editting the config variable in the globs submodule.
 import pyglet
 from ctypes import *
 from pyglet.gl import *
-from fbo import FBO
-from pimage import *
+from .fbo import FBO
+from .pimage import *
 
-__all__=['PyprocessingWindow','FBOWindow','SingleBufferWindow','AccumWindow','BackupWindow']
+__all__ = ['PyprocessingWindow', 'FBOWindow', 'SingleBufferWindow', 'AccumWindow', 'BackupWindow']
 
 
-class PyprocessingWindow (pyglet.window.Window):
+class PyprocessingWindow(pyglet.window.Window):
     """This is just a wrapper for the pyglet window class. If any 
     window method or attribute should be messed with for all of pyprocessing's
     window classes, it's best to do it here."""
     pass
+
 
 class FBOWindow(PyprocessingWindow):
     """This is a pyglet window where drawing in fact occurs inside a FBO.
@@ -65,7 +66,7 @@ class FBOWindow(PyprocessingWindow):
     back and front buffers, the FBO is first blitted onto the back buffer.
     The idea is to provide a stable drawing canvas which is not erased or
     corrupted by the flip."""
-    
+
     def __init__(self, *args, **keyargs):
         """Constructor"""
         # construct the base class
@@ -73,7 +74,7 @@ class FBOWindow(PyprocessingWindow):
         # construct the fbo and attach it
         self.fbo = FBO(self.width, self.height)
         self.fbo.attach()
-        
+
     def flip(self):
         """Override the flip method."""
         # cease using the FBO and start using the regular frame buffer
@@ -85,31 +86,33 @@ class FBOWindow(PyprocessingWindow):
         glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
         glLoadIdentity()
-        glViewport(0,0,self.width,self.height)
+        glViewport(0, 0, self.width, self.height)
         # prepares and blits the FBO buffer onto the back buffer.
         glBindFramebufferEXT(GL_READ_FRAMEBUFFER_EXT, self.fbo.framebuffer)
         glReadBuffer(GL_COLOR_ATTACHMENT0_EXT)
         glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER_EXT, 0)
         glDrawBuffer(GL_BACK)
-        glBlitFramebufferEXT(0, 0, self.width, self.height, 0, 0, self.width, self.height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        glBlitFramebufferEXT(0, 0, self.width, self.height, 0, 0, self.width, self.height, GL_COLOR_BUFFER_BIT,
+                             GL_NEAREST)
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
         glPopMatrix()
         # do the actual flip
-        super (FBOWindow, self).flip()
+        super(FBOWindow, self).flip()
         # reattach the fbo for further drawing
         self.fbo.attach()
-        
-    def on_resize(self,w,h):
-        super (FBOWindow, self).on_resize(w,h)
+
+    def on_resize(self, w, h):
+        super(FBOWindow, self).on_resize(w, h)
         self.fbo.detach()
-        self.fbo = FBO(w,h)
+        self.fbo = FBO(w, h)
         self.fbo.attach()
+
 
 class SingleBufferWindow(PyprocessingWindow):
     """This is a pyglet window with a single buffer config."""
-    
+
     def __init__(self, *args, **keyargs):
         """Constructor"""
         # construct the base class
@@ -121,52 +124,55 @@ class SingleBufferWindow(PyprocessingWindow):
         keyargs['config'] = config
         super(SingleBufferWindow, self).__init__(*args, **keyargs)
         glDrawBuffer(GL_FRONT)
-        
-    def flip(self): pass
-         
+
+    def flip(self):
+        pass
+
+
 class BackupWindow(PyprocessingWindow):
     """This is a pyglet window for which an array is used to keep the back
     buffer contents consistent. The flip method is overridden so that 
     instead of merely swapping the back and front buffers, the back buffer
     contents are copied to an array inside the CPU's memory, and after the flip
     the contents are copied back to the back buffer."""
-    
+
     def __init__(self, *args, **keyargs):
         """Constructor"""
         # construct the base class
         if 'config' in keyargs:
             config = keyargs['config']
         else:
-            config = Config(double_buffer=True,depth_size=24)
+            config = Config(double_buffer=True, depth_size=24)
         keyargs['config'] = config
         super(BackupWindow, self).__init__(*args, **keyargs)
-        self.buffer = ( GLubyte * (4*self.width*self.height) )()
-        self.currentpos = (c_int*2)()
-        
+        self.buffer = (GLubyte * (4 * self.width * self.height))()
+        self.currentpos = (c_int * 2)()
+
     def flip(self):
         """Override the flip method."""
         glReadPixels(0, 0, self.width, self.height, GL_RGBA, GL_UNSIGNED_BYTE, self.buffer)
-        super (BackupWindow, self).flip()
+        super(BackupWindow, self).flip()
         glGetIntegerv(GL_CURRENT_RASTER_POSITION, self.currentpos)
-        glMatrixMode (GL_MODELVIEW)
+        glMatrixMode(GL_MODELVIEW)
         glPushMatrix()
         glLoadIdentity()
-        glMatrixMode (GL_PROJECTION)
+        glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
-        glWindowPos2i(0,0)
+        glWindowPos2i(0, 0)
         glDisable(GL_DEPTH_TEST)
         glDrawPixels(self.width, self.height, GL_RGBA, GL_UNSIGNED_BYTE, self.buffer)
         glEnable(GL_DEPTH_TEST)
         glPopMatrix()
-        glMatrixMode (GL_MODELVIEW)
+        glMatrixMode(GL_MODELVIEW)
         glPopMatrix()
-        glRasterPos2i(self.currentpos[0],self.currentpos[1])
-        
-    def on_resize(self,w,h):
-	"""Window changed size. Must reallocate backing buffer."""
-        super (FBOWindow, self).on_resize(w,h)
-        self.buffer = ( GLubyte * (4*w*h) )(0) 
+        glRasterPos2i(self.currentpos[0], self.currentpos[1])
+
+    def on_resize(self, w, h):
+        """Window changed size. Must reallocate backing buffer."""
+        super(FBOWindow, self).on_resize(w, h)
+        self.buffer = (GLubyte * (4 * w * h))(0)
+
 
 class AccumWindow(PyprocessingWindow):
     """This is a pyglet window for which an accumulation buffer is defined.
@@ -175,26 +181,26 @@ class AccumWindow(PyprocessingWindow):
     buffer, and after the flip the accum buffer is copied back.
     The idea is to provide a stable drawing canvas which is not erased or
     corrupted by the flip."""
-    
+
     def __init__(self, *args, **keyargs):
         """Constructor"""
         # construct the base class
         if 'config' in keyargs:
             config = keyargs['config']
         else:
-            config = Config(double_buffer=True,depth_size=24)
+            config = Config(double_buffer=True, depth_size=24)
         config.accum_alpha_size = 8
         config.accum_red_size = 8
         config.accum_green_size = 8
         config.accum_blue_size = 8
         keyargs['config'] = config
         super(AccumWindow, self).__init__(*args, **keyargs)
-        
+
     def flip(self):
         """Override the flip method."""
         # copy from the the back buffer to the accumulation buffer
         glAccum(GL_LOAD, 1.0)
         # do the actual flip
-        super (AccumWindow, self).flip()
+        super(AccumWindow, self).flip()
         # copy the accum buffer to the back buffer
         glAccum(GL_RETURN, 1)
